@@ -3,7 +3,7 @@ TARGET=test_mod
 PWD := $(shell pwd)
 obj-m += ${TARGET}.o
 ${TARGET}-y := test_module.o
-#CFLAGS_test_module.o := -DDEBUG
+CFLAGS_test_module.o := -DDEBUG
 
 #KDIR := /lib/modules/$(shell uname -r)/build
 KDIR := /home/ilya/share/linux-5.15.71
