@@ -2,7 +2,7 @@ TARGET=test_mod
 
 PWD := $(shell pwd)
 obj-m += ${TARGET}.o
-${TARGET}-y := test_module.o
+${TARGET}-y := test_module.o exec_context.o
 CFLAGS_test_module.o := -DDEBUG
 
 KDIR := /lib/modules/$(shell uname -r)/build
