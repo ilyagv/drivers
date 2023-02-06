@@ -1,4 +1,4 @@
-#define pr_fmt(fmt) "%s %s:%u " fmt, KBUILD_MODNAME, __func__, __LINE__
+//#define pr_fmt(fmt) "%s %s:%u " fmt, KBUILD_MODNAME, __func__, __LINE__
 
 #include <linux/cred.h> // current_uid(); current_euid(); 
 #include <linux/sched/signal.h> // for_each_process()
@@ -61,3 +61,61 @@ void show_processes(void)
 	rcu_read_unlock();
 }
 
+static inline void disp_idle_thread(void)
+{
+	struct task_struct *t = &init_task;
+
+	/* We know that the swapper is a kernel thread */
+	pr_info("%8d %8d   0x%px  0x%px [%16s]\n",
+		t->pid, t->pid, t, t->stack, t->comm);
+}
+
+void show_threads(void)
+{
+	struct task_struct *g = NULL; // process ptr
+	struct task_struct *t = NULL; // thread ptr
+	int nr_threads = 0;
+	int total = 0;
+
+#define BUF_MAX 256
+#define TMP_MAX 128
+	char buf[BUF_MAX];
+	char tmp[TMP_MAX];
+	const char hdr[] =
+"------------------------------------------------------------------------------------------\n"
+"    TGID     PID         current           stack-start         Thread Name     MT? # thrds\n"
+"------------------------------------------------------------------------------------------\n";
+
+	pr_info("%s", hdr);
+	disp_idle_thread();
+
+	rcu_read_lock();
+	do_each_thread(g, t) {
+		task_lock(t);
+		
+		snprintf(buf, BUF_MAX - 1, "%8d %8d ", g->tgid, t->pid);
+		snprintf(tmp, TMP_MAX - 1, "  %px ", t);
+		snprintf(buf, BUF_MAX - 1, "%s%s  %px ", buf, tmp, t->stack);
+		if (g->mm) {
+			snprintf(tmp, TMP_MAX - 1, " [%16s]", t->comm);
+		} else {
+			snprintf(tmp, TMP_MAX - 1, "  %16s ", t->comm);
+		}
+
+		snprintf(buf, BUF_MAX - 1, "%s%s", buf, tmp);
+
+		nr_threads = get_nr_threads(g);
+		if (g->mm && (g->tgid == t->pid) && (nr_threads > 1)) {
+			snprintf(tmp, TMP_MAX - 1, " %3d", nr_threads);
+			snprintf(buf, BUF_MAX - 1, "%s%s", buf, tmp);
+		}
+		snprintf(buf, BUF_MAX - 1, "%s\n", buf);
+		pr_info("%s", buf);
+		total++;
+		memset(buf, 0, sizeof(buf));
+		memset(tmp, 0, sizeof(tmp));
+		task_unlock(t);
+	} while_each_thread(g, t);
+
+	rcu_read_unlock();
+}

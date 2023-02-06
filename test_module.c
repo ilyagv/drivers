@@ -2,6 +2,8 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/sched.h>
+
 #include "exec_context.h"
 
 static int __init mod_init(void)
@@ -19,6 +21,7 @@ static int __init mod_init(void)
 	pr_devel("log-level pr_devel [7]\n");
 
 	show_processes();
+	show_threads();
 
 	pr_info(" sizeof(struct task_struct)=%zd\n", sizeof(struct task_struct));
 	show_context(KBUILD_MODNAME);
