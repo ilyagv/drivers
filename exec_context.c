@@ -66,7 +66,7 @@ static inline void disp_idle_thread(void)
 	struct task_struct *t = &init_task;
 
 	/* We know that the swapper is a kernel thread */
-	pr_info("%8d %8d   0x%px  0x%px [%16s]\n",
+	pr_info("%8d %8d   0x%px   0x%px  [%16s]\n",
 		t->pid, t->pid, t, t->stack, t->comm);
 }
 
@@ -94,8 +94,8 @@ void show_threads(void)
 		task_lock(t);
 		
 		snprintf(buf, BUF_MAX - 1, "%8d %8d ", g->tgid, t->pid);
-		snprintf(tmp, TMP_MAX - 1, "  %px ", t);
-		snprintf(buf, BUF_MAX - 1, "%s%s  %px ", buf, tmp, t->stack);
+		snprintf(tmp, TMP_MAX - 1, "  0x%px ", t);
+		snprintf(buf, BUF_MAX - 1, "%s%s  0x%px ", buf, tmp, t->stack);
 		if (g->mm) {
 			snprintf(tmp, TMP_MAX - 1, " [%16s]", t->comm);
 		} else {
