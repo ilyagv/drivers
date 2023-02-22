@@ -5,9 +5,11 @@
 #include <linux/sched.h>
 
 #include "exec_context.h"
+#include "net_device.h"
 
 static int __init mod_init(void)
 {
+	int err;
 	pr_err("Start. CPU %d\n", smp_processor_id());
 
 	pr_emerg("log-level KERN_EMERG [0]\n");
@@ -25,12 +27,18 @@ static int __init mod_init(void)
 
 	pr_info(" sizeof(struct task_struct)=%zd\n", sizeof(struct task_struct));
 	show_context(KBUILD_MODNAME);
+
+	err = ndev_init();
+	if (err)
+		return err;
+
 	return 0;
 }
 
 static void __exit mod_exit(void)
 {
 	show_context(KBUILD_MODNAME);
+	ndev_exit();
 	pr_err("Stop. CPU %d\n", smp_processor_id());
 }
 
