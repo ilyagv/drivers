@@ -6,6 +6,8 @@
 
 #include "exec_context.h"
 #include "net_device.h"
+#include "kernel_segment.h"
+
 
 static int __init mod_init(void)
 {
@@ -27,6 +29,8 @@ static int __init mod_init(void)
 
 	pr_info(" sizeof(struct task_struct)=%zd\n", sizeof(struct task_struct));
 	show_context(KBUILD_MODNAME);
+
+	show_kernel_segment();
 
 	err = ndev_init();
 	if (err)
