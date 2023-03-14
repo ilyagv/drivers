@@ -6,7 +6,8 @@ ${TARGET}-y := \
 	test_module.o \
 	exec_context.o \
 	net_device.o \
-	kernel_segment.o
+	kernel_segment.o \
+	bsa_test.o
 
 CFLAGS_test_module.o := -DDEBUG
 

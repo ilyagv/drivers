@@ -9,6 +9,8 @@
 #include "kernel_segment.h"
 
 
+extern int bsa_alloc(void);
+
 static int __init mod_init(void)
 {
 	int err;
@@ -31,6 +33,8 @@ static int __init mod_init(void)
 	show_context(KBUILD_MODNAME);
 
 	show_kernel_segment();
+
+	bsa_alloc();
 
 	err = ndev_init();
 	if (err)
