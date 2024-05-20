@@ -1,0 +1,328 @@
+----------------------------------------------------------------------
+5.10.209
+
+BUG: memory leak
+unreferenced object 0xffff888031862000 (size 512):
+  comm "softirq", pid 0, jiffies 4294978049 (age 19.387s)
+  hex dump (first 32 bytes):
+    00 00 33 33 00 00 00 02 aa aa aa aa aa 0c 86 dd  ..33............
+    60 00 00 00 00 10 3a ff fe 80 00 00 00 00 00 00  `.....:.........
+  backtrace:
+    [<000000007dcef513>] __alloc_skb+0xa9/0x5a0
+    [<000000002767cec6>] ndisc_alloc_skb+0x136/0x310
+    [<000000008f161184>] ndisc_send_rs+0x381/0x6b0
+    [<000000008a3cedad>] addrconf_rs_timer+0x2f7/0x7a0
+    [<0000000038356af0>] call_timer_fn+0x189/0x4f0
+    [<000000004d8ccbaa>] __run_timers.part.0+0x693/0x9e0
+    [<000000008f571039>] run_timer_softirq+0xb6/0x1d0
+    [<000000002ea7dd29>] __do_softirq+0x1e2/0x8fd
+    [<00000000fc73f4d0>] run_ksoftirqd+0x31/0x60
+    [<00000000ce5ed0bb>] smpboot_thread_fn+0x686/0x9f0
+    [<00000000ce560953>] kthread+0x3a5/0x490
+    [<000000009a325ecf>] ret_from_fork+0x22/0x30
+
+
+(gdb) l *__alloc_skb+0xa9
+0xffffffff85e7fb29 is in __alloc_skb (net/core/skbuff.c:145).
+warning: Source file is more recent than executable.
+140              * to the reserves, fail.
+141              */
+142             obj = kmalloc_node_track_caller(size,
+143                                             flags | __GFP_NOMEMALLOC | __GFP_NOWARN,
+144                                             node);
+145             if (obj || !(gfp_pfmemalloc_allowed(flags)))
+146                     goto out;
+147
+148             /* Try again but now we are using pfmemalloc reserves */
+149             ret_pfmemalloc = true;
+
+
+
+(gdb) l *ndisc_alloc_skb+0x136
+0xffffffff86a464e6 is in ndisc_alloc_skb (net/ipv6/ndisc.c:422).
+warning: Source file is more recent than executable.
+417             int tlen = dev->needed_tailroom;
+418             struct sock *sk = dev_net(dev)->ipv6.ndisc_sk;
+419             struct sk_buff *skb;
+420
+421             skb = alloc_skb(hlen + sizeof(struct ipv6hdr) + len + tlen, GFP_ATOMIC);
+422             if (!skb) {
+423                     ND_PRINTK(0, err, "ndisc: %s failed to allocate an skb\n",
+424                               __func__);
+425                     return NULL;
+426             }
+(gdb) exit
+
+--------------------------------------------------------------------------------
+upstream
+
+BUG: memory leak
+unreferenced object 0xffff888020fec000 (size 2048):
+  comm "kworker/0:2", pid 103, jiffies 4294754556
+  hex dump (first 32 bytes):
+    00 00 33 33 00 00 00 16 aa aa aa aa aa 0c 86 dd  ..33............
+    60 00 00 00 00 4c 00 01 00 00 00 00 00 00 00 00  `....L..........
+  backtrace (crc ba27666e):
+    [<ffffffff81d5e0f3>] __kmalloc_node_track_caller+0x3b3/0x4b0
+    [<ffffffff86c3d18f>] kmalloc_reserve+0xef/0x260
+    [<ffffffff86c46576>] __alloc_skb+0x126/0x350
+    [<ffffffff86c5e514>] alloc_skb_with_frags+0xe4/0x710
+    [<ffffffff86c26988>] sock_alloc_send_pskb+0x7e8/0x970
+    [<ffffffff879b19c9>] mld_newpack.isra.0+0x1c9/0x730
+    [<ffffffff879b21bf>] add_grhead+0x27f/0x310
+    [<ffffffff879bb066>] add_grec+0x10d6/0x1710
+    [<ffffffff879c052f>] mld_ifc_work+0x41f/0xd50
+    [<ffffffff815508aa>] process_one_work+0x7ca/0x1450
+    [<ffffffff81551dae>] worker_thread+0x86e/0x1230
+    [<ffffffff81572e69>] kthread+0x339/0x440
+    [<ffffffff81324f58>] ret_from_fork+0x48/0x80
+    [<ffffffff81004e7b>] ret_from_fork_asm+0x1b/0x30
+
+BUG: memory leak
+unreferenced object 0xffff88800e88ea00 (size 640):
+  comm "kworker/2:0", pid 27, jiffies 4294754569
+  hex dump (first 32 bytes):
+    2a 01 33 33 ff 3f 64 18 56 b9 60 3f 64 18 86 dd  *.33.?d.V.`?d...
+    60 00 00 00 00 20 3a ff 00 00 00 00 00 00 00 00  `.... :.........
+  backtrace (crc 1ca46b2c):
+    [<ffffffff81d5c845>] kmem_cache_alloc_node+0x2d5/0x380
+    [<ffffffff86c3d20a>] kmalloc_reserve+0x16a/0x260
+    [<ffffffff86c46576>] __alloc_skb+0x126/0x350
+    [<ffffffff87978745>] ndisc_alloc_skb+0x135/0x330
+    [<ffffffff879797f8>] ndisc_ns_create+0x168/0x7d0
+    [<ffffffff87985aa8>] ndisc_send_ns+0x98/0x130
+    [<ffffffff879151fc>] addrconf_dad_work+0xc3c/0x1470
+    [<ffffffff815508aa>] process_one_work+0x7ca/0x1450
+    [<ffffffff81551dae>] worker_thread+0x86e/0x1230
+    [<ffffffff81572e69>] kthread+0x339/0x440
+    [<ffffffff81324f58>] ret_from_fork+0x48/0x80
+    [<ffffffff81004e7b>] ret_from_fork_asm+0x1b/0x30
+
+BUG: memory leak
+unreferenced object 0xffff88801e104000 (size 2048):
+  comm "kworker/2:0", pid 27, jiffies 4294756139
+  hex dump (first 32 bytes):
+    00 00 33 33 00 00 00 16 aa aa aa aa aa 1c 86 dd  ..33............
+    60 00 00 00 00 38 00 01 00 00 00 00 00 00 00 00  `....8..........
+  backtrace (crc 39b4330a):
+    [<ffffffff81d5e0f3>] __kmalloc_node_track_caller+0x3b3/0x4b0
+    [<ffffffff86c3d18f>] kmalloc_reserve+0xef/0x260
+    [<ffffffff86c46576>] __alloc_skb+0x126/0x350
+    [<ffffffff86c5e514>] alloc_skb_with_frags+0xe4/0x710
+    [<ffffffff86c26988>] sock_alloc_send_pskb+0x7e8/0x970
+    [<ffffffff879b19c9>] mld_newpack.isra.0+0x1c9/0x730
+    [<ffffffff879b21bf>] add_grhead+0x27f/0x310
+    [<ffffffff879bb066>] add_grec+0x10d6/0x1710
+    [<ffffffff879c052f>] mld_ifc_work+0x41f/0xd50
+    [<ffffffff815508aa>] process_one_work+0x7ca/0x1450
+    [<ffffffff81551dae>] worker_thread+0x86e/0x1230
+    [<ffffffff81572e69>] kthread+0x339/0x440
+    [<ffffffff81324f58>] ret_from_fork+0x48/0x80
+    [<ffffffff81004e7b>] ret_from_fork_asm+0x1b/0x30
+
+--------------------------------------------------------------------------------
+upstream + debug
+
+BUG: memory leak
+unreferenced object 0xffff88810749b000 (size 2048):
+  comm "kworker/1:0", pid 22, jiffies 4294748601
+  hex dump (first 32 bytes):
+    00 00 33 33 00 00 00 16 0a f0 7d 43 28 e9 86 dd  ..33......}C(...
+    60 00 00 00 00 24 00 01 fe 80 00 00 00 00 00 00  `....$..........
+  backtrace (crc 74f0ff05):
+    [<ffffffff81d40443>] __kmalloc_node_track_caller+0x3b3/0x4b0
+    [<ffffffff86b97e0f>] kmalloc_reserve+0xef/0x260
+    [<ffffffff86ba1156>] __alloc_skb+0x126/0x330
+    [<ffffffff86bb8f94>] alloc_skb_with_frags+0xe4/0x710
+    [<ffffffff86b81b18>] sock_alloc_send_pskb+0x7e8/0x970
+    [<ffffffff878e16c9>] mld_newpack.isra.0+0x1c9/0x730
+    [<ffffffff878e1ebf>] add_grhead+0x27f/0x310
+    [<ffffffff878ea88a>] add_grec+0x109a/0x1650
+    [<ffffffff878eb382>] mld_send_initial_cr.part.0+0xe2/0x260
+    [<ffffffff878efef7>] mld_dad_work+0x57/0x2e0
+    [<ffffffff81541cca>] process_one_work+0x7ca/0x1450
+    [<ffffffff815431ce>] worker_thread+0x86e/0x1230
+    [<ffffffff81564639>] kthread+0x339/0x440
+    [<ffffffff8131a088>] ret_from_fork+0x48/0x80
+    [<ffffffff81004ddb>] ret_from_fork_asm+0x1b/0x30
+
+(gdb) l *__alloc_skb+0x126
+0xffffffff86ba1156 is in __alloc_skb (net/core/skbuff.c:652).
+647              * line. It usually works because kmalloc(X > SMP_CACHE_BYTES) gives
+648              * aligned memory blocks, unless SLUB/SLAB debug is enabled.
+649              * Both skb->head and skb_shared_info are cache line aligned.
+650              */
+651             data = kmalloc_reserve(&size, gfp_mask, node, &pfmemalloc);
+652             if (unlikely(!data))
+653                     goto nodata;
+654             /* kmalloc_size_roundup() might give us more room than requested.
+655              * Put skb_shared_info exactly at the end of allocated zone,
+656              * to allow max possible filling before reallocation.
+
+---------------------------------------------------
+BUG: memory leak
+unreferenced object 0xffff88801b6a7000 (size 2048):
+  comm "kworker/0:2", pid 104, jiffies 4294871730
+  hex dump (first 32 bytes):
+    00 00 33 33 00 00 00 16 4a 27 16 fd 33 f9 86 dd  ..33....J'..3...
+    60 00 00 00 00 24 00 01 00 00 00 00 00 00 00 00  `....$..........
+  backtrace (crc 2ffb9f4c):
+    [<ffffffff81d40443>] __kmalloc_node_track_caller+0x3b3/0x4b0
+    [<ffffffff86b97e0f>] kmalloc_reserve+0xef/0x260
+    [<ffffffff86ba1156>] __alloc_skb+0x126/0x330
+    [<ffffffff86bb8f94>] alloc_skb_with_frags+0xe4/0x710
+    [<ffffffff86b81b18>] sock_alloc_send_pskb+0x7e8/0x970
+    [<ffffffff878e185b>] mld_newpack.isra.0+0x1db/0x820
+    [<ffffffff878e2135>] add_grhead+0x285/0x370
+    [<ffffffff878eacb7>] add_grec+0x11e7/0x18a0
+    [<ffffffff878efb0f>] mld_ifc_work+0x41f/0xcd0
+    [<ffffffff81541cca>] process_one_work+0x7ca/0x1450
+    [<ffffffff815431ce>] worker_thread+0x86e/0x1230
+    [<ffffffff81564639>] kthread+0x339/0x440
+    [<ffffffff8131a088>] ret_from_fork+0x48/0x80
+    [<ffffffff81004ddb>] ret_from_fork_asm+0x1b/0x30
+
+BUG: memory leak
+unreferenced object 0xffff888028890000 (size 2048):
+  comm "kworker/0:2", pid 104, jiffies 4294871777
+  hex dump (first 32 bytes):
+    00 00 33 33 00 00 00 16 aa aa aa aa aa 1c 86 dd  ..33............
+    60 00 00 00 00 38 00 01 00 00 00 00 00 00 00 00  `....8..........
+  backtrace (crc 99f4b457):
+    [<ffffffff81d40443>] __kmalloc_node_track_caller+0x3b3/0x4b0
+    [<ffffffff86b97e0f>] kmalloc_reserve+0xef/0x260
+    [<ffffffff86ba1156>] __alloc_skb+0x126/0x330
+    [<ffffffff86bb8f94>] alloc_skb_with_frags+0xe4/0x710
+    [<ffffffff86b81b18>] sock_alloc_send_pskb+0x7e8/0x970
+    [<ffffffff878e185b>] mld_newpack.isra.0+0x1db/0x820
+    [<ffffffff878e2135>] add_grhead+0x285/0x370
+    [<ffffffff878eacb7>] add_grec+0x11e7/0x18a0
+    [<ffffffff878efb0f>] mld_ifc_work+0x41f/0xcd0
+    [<ffffffff81541cca>] process_one_work+0x7ca/0x1450
+    [<ffffffff815431ce>] worker_thread+0x86e/0x1230
+    [<ffffffff81564639>] kthread+0x339/0x440
+    [<ffffffff8131a088>] ret_from_fork+0x48/0x80
+    [<ffffffff81004ddb>] ret_from_fork_asm+0x1b/0x30
+
+BUG: memory leak
+unreferenced object 0xffff8880249d9200 (size 640):
+  comm "kworker/0:2", pid 104, jiffies 4294872008
+  hex dump (first 32 bytes):
+    00 00 33 33 ff 00 00 1c aa aa aa aa aa 1c 86 dd  ..33............
+    60 00 00 00 00 20 3a ff 00 00 00 00 00 00 00 00  `.... :.........
+  backtrace (crc f772f910):
+    [<ffffffff81d3ebd5>] kmem_cache_alloc_node+0x2d5/0x380
+    [<ffffffff86b97e8a>] kmalloc_reserve+0x16a/0x260
+    [<ffffffff86ba1156>] __alloc_skb+0x126/0x330
+    [<ffffffff878a9945>] ndisc_alloc_skb+0x135/0x340
+    [<ffffffff878aa198>] ndisc_ns_create+0x168/0x7d0
+    [<ffffffff878b6208>] ndisc_send_ns+0x98/0x130
+    [<ffffffff8784594c>] addrconf_dad_work+0xc3c/0x1470
+    [<ffffffff81541cca>] process_one_work+0x7ca/0x1450
+    [<ffffffff815431ce>] worker_thread+0x86e/0x1230
+    [<ffffffff81564639>] kthread+0x339/0x440
+    [<ffffffff8131a088>] ret_from_fork+0x48/0x80
+    [<ffffffff81004ddb>] ret_from_fork_asm+0x1b/0x30
+
+BUG: memory leak
+unreferenced object 0xffff8880249da400 (size 640):
+  comm "kworker/0:1", pid 9, jiffies 4294873110
+  hex dump (first 32 bytes):
+    73 00 33 33 ff fd 33 f9 4a 27 16 fd 33 f9 86 dd  s.33..3.J'..3...
+    60 00 00 00 00 20 3a ff 00 00 00 00 00 00 00 00  `.... :.........
+  backtrace (crc 5730f6ec):
+    [<ffffffff81d3ebd5>] kmem_cache_alloc_node+0x2d5/0x380
+    [<ffffffff86b97e8a>] kmalloc_reserve+0x16a/0x260
+    [<ffffffff86ba1156>] __alloc_skb+0x126/0x330
+    [<ffffffff878a9945>] ndisc_alloc_skb+0x135/0x340
+    [<ffffffff878aa198>] ndisc_ns_create+0x168/0x7d0
+    [<ffffffff878b6208>] ndisc_send_ns+0x98/0x130
+    [<ffffffff8784594c>] addrconf_dad_work+0xc3c/0x1470
+    [<ffffffff81541cca>] process_one_work+0x7ca/0x1450
+    [<ffffffff815431ce>] worker_thread+0x86e/0x1230
+    [<ffffffff81564639>] kthread+0x339/0x440
+    [<ffffffff8131a088>] ret_from_fork+0x48/0x80
+    [<ffffffff81004ddb>] ret_from_fork_asm+0x1b/0x30
+----------------------------------------------------------------------------------------
+
+
+
+BUG: memory leak
+unreferenced object 0xffff88810ca86a00 (size 640):
+  comm "kworker/3:2", pid 143, jiffies 4294742327
+  hex dump (first 32 bytes):
+    00 00 33 33 ff 6e e2 47 2e 1c 17 6e e2 47 86 dd  ..33.n.G...n.G..
+    60 00 00 00 00 20 3a ff 00 00 00 00 00 00 00 00  `.... :.........
+  backtrace (crc 2da48b63):
+    [<ffffffff81d3ebd5>] kmem_cache_alloc_node+0x2d5/0x380
+    [<ffffffff86b97e8a>] kmalloc_reserve+0x16a/0x260
+    [<ffffffff86ba1156>] __alloc_skb+0x126/0x330
+    [<ffffffff878a9945>] ndisc_alloc_skb+0x135/0x340
+    [<ffffffff878aa1a4>] ndisc_ns_create+0x174/0x8e0
+    [<ffffffff878b6318>] ndisc_send_ns+0x98/0x130
+    [<ffffffff8784594c>] addrconf_dad_work+0xc3c/0x1470
+    [<ffffffff81541cca>] process_one_work+0x7ca/0x1450
+    [<ffffffff815431ce>] worker_thread+0x86e/0x1230
+    [<ffffffff81564639>] kthread+0x339/0x440
+    [<ffffffff8131a088>] ret_from_fork+0x48/0x80
+    [<ffffffff81004ddb>] ret_from_fork_asm+0x1b/0x30
+
+BUG: memory leak
+unreferenced object 0xffff88810ca87000 (size 640):
+  comm "kworker/3:2", pid 143, jiffies 4294742908
+  hex dump (first 32 bytes):
+    00 00 33 33 00 00 00 02 aa aa aa aa aa 0f 86 dd  ..33............
+    60 00 00 00 00 10 3a ff fe 80 00 00 00 00 00 00  `.....:.........
+  backtrace (crc ac633fa5):
+    [<ffffffff81d3ebd5>] kmem_cache_alloc_node+0x2d5/0x380
+    [<ffffffff86b97e8a>] kmalloc_reserve+0x16a/0x260
+    [<ffffffff86ba1156>] __alloc_skb+0x126/0x330
+    [<ffffffff878a9945>] ndisc_alloc_skb+0x135/0x340
+    [<ffffffff878b6c6b>] ndisc_send_rs+0x3fb/0x7d0
+    [<ffffffff878441d8>] addrconf_dad_completed+0x438/0xf60
+    [<ffffffff878454d2>] addrconf_dad_work+0x7c2/0x1470
+    [<ffffffff81541cca>] process_one_work+0x7ca/0x1450
+    [<ffffffff815431ce>] worker_thread+0x86e/0x1230
+    [<ffffffff81564639>] kthread+0x339/0x440
+    [<ffffffff8131a088>] ret_from_fork+0x48/0x80
+    [<ffffffff81004ddb>] ret_from_fork_asm+0x1b/0x30
+
+BUG: memory leak
+unreferenced object 0xffff88810ca87900 (size 640):
+  comm "kworker/3:2", pid 143, jiffies 4294744808
+  hex dump (first 32 bytes):
+    00 00 33 33 00 00 00 02 2e 1c 17 6e e2 47 86 dd  ..33.......n.G..
+    60 00 00 00 00 10 3a ff fe 80 00 00 00 00 00 00  `.....:.........
+  backtrace (crc ac2d4dc6):
+    [<ffffffff81d3ebd5>] kmem_cache_alloc_node+0x2d5/0x380
+    [<ffffffff86b97e8a>] kmalloc_reserve+0x16a/0x260
+    [<ffffffff86ba1156>] __alloc_skb+0x126/0x330
+    [<ffffffff878a9945>] ndisc_alloc_skb+0x135/0x340
+    [<ffffffff878b6c6b>] ndisc_send_rs+0x3fb/0x7d0
+    [<ffffffff878441d8>] addrconf_dad_completed+0x438/0xf60
+    [<ffffffff878454d2>] addrconf_dad_work+0x7c2/0x1470
+    [<ffffffff81541cca>] process_one_work+0x7ca/0x1450
+    [<ffffffff815431ce>] worker_thread+0x86e/0x1230
+    [<ffffffff81564639>] kthread+0x339/0x440
+    [<ffffffff8131a088>] ret_from_fork+0x48/0x80
+    [<ffffffff81004ddb>] ret_from_fork_asm+0x1b/0x30
+
+BUG: memory leak
+unreferenced object 0xffff88810ca87c00 (size 640):
+  comm "softirq", pid 0, jiffies 4294747011
+  hex dump (first 32 bytes):
+    00 00 33 33 00 00 00 02 aa aa aa aa aa 0f 86 dd  ..33............
+    60 00 00 00 00 10 3a ff fe 80 00 00 00 00 00 00  `.....:.........
+  backtrace (crc b507183c):
+    [<ffffffff81d3ebd5>] kmem_cache_alloc_node+0x2d5/0x380
+    [<ffffffff86b97e8a>] kmalloc_reserve+0x16a/0x260
+    [<ffffffff86ba1156>] __alloc_skb+0x126/0x330
+    [<ffffffff878a9945>] ndisc_alloc_skb+0x135/0x340
+    [<ffffffff878b6c6b>] ndisc_send_rs+0x3fb/0x7d0
+    [<ffffffff878438ab>] addrconf_rs_timer+0x2fb/0x7e0
+    [<ffffffff8175f42a>] call_timer_fn+0x17a/0x500
+    [<ffffffff8175fe44>] __run_timers.part.0+0x684/0x970
+    [<ffffffff817601fa>] run_timer_softirq+0xba/0x1d0
+    [<ffffffff88db380f>] __do_softirq+0x1df/0x8ce
+
+
