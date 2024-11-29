@@ -1,5 +1,6 @@
 #include "bpf_sockops.h"
 
+#define CHECK_BINDTODEVICE
 /*
  * extract the key identifying the socket source of the TCP event 
  */
@@ -34,6 +35,16 @@ void bpf_sock_ops_ipv4(struct bpf_sock_ops *skops)
 	}
 }
 
+#ifdef CHECK_BINDTODEVICE
+#define SIZE 0x80000000  // INT_MIN
+//#define SIZE 0x7fffffff 
+//#define SIZE 0x400000
+//#define SIZE 10
+
+// Map will be created
+//char val[SIZE] = "eth1";
+#endif
+
 SEC("sockops")
 int bpf_sockops_v4(struct bpf_sock_ops *skops)
 {
@@ -45,8 +56,20 @@ int bpf_sockops_v4(struct bpf_sock_ops *skops)
 	switch (op) {
         case BPF_SOCK_OPS_PASSIVE_ESTABLISHED_CB:
         case BPF_SOCK_OPS_ACTIVE_ESTABLISHED_CB:
-		if (family == 2) //AF_INET
+		if (family == 2) { //AF_INET
+#ifdef CHECK_BINDTODEVICE
+			char val[] = "eth1";
+			int res = bpf_setsockopt(
+					  skops
+					, 1 // SOL_SOCKET
+					, 25 // SO_BINDTODEVICE
+					, val
+					//, (int)SIZE//sizeof(val)
+					, sizeof(val)
+					);
+#endif
                         bpf_sock_ops_ipv4(skops);
+		}
                 break;
         default:
                 break;
