@@ -10,7 +10,9 @@ msg = @printf '  %-8s%s %s%s\n' "$(1)" "$(if $(2), [$(2)])" "$(notdir $(3))" "$(
 MAKEFLAGS += --no-print-directory
 endif
 
-CFLAGS=-Wall -static -g -ggdb -O2 -fstrict-overflow -fwrapv -ftrapv -Woverflow -fsanitize=signed-integer-overflow -Wtype-limits -Wstrict-overflow=5 -fstrict-overflow -Wsign-compare
+CFLAGS=-Wall -static -g -ggdb -fstrict-overflow -fwrapv -ftrapv -Woverflow -fsanitize=signed-integer-overflow -Wtype-limits -Wstrict-overflow=5 -fstrict-overflow -Wsign-compare
+CFLAGS+=-O2
+#CFLAGS+=-O0
 LDFLAGS=-static-libgcc
 
 OBJS:= main.o
